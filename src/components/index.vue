@@ -1,7 +1,14 @@
 <template>
     <n-space vertical :size="24">
-        <n-button type="primary" @click="showModal = true">新增用户</n-button>
-        <n-data-table :columns="columns" :data="testData.value" :pagination="pagination" :bordered="false"/>
+        <n-spance style="text-align: center">
+            <span>查询:</span>
+            <n-input v-model:value="searchValue" placeholder="检索" style="width: 280px;margin-left: 20px" />
+            <span style="margin-left: 20px"> 性别：</span>
+            <n-select v-model:value="selectSex" :options="options" style="width: 180px;margin-left: 10px;display: inline-block;line-height: 32px" />
+            <n-button type="info" @click="searchInputValue" style="width: 120px;margin-left: 20px" >查询</n-button>
+            <n-button type="default" @click="showModalCol"  style="width: 120px;margin-left: 20px">新增用户</n-button>
+        </n-spance>
+        <n-data-table :columns="columns" :data="testData"  :bordered="false"/>
         <n-modal v-model:show="showModal">
             <n-card
                 style="width: 600px"
@@ -14,18 +21,18 @@
                     ref="formRef"
                     :model="formValue"
                     :rules="rules"
-                    :size="size">
+                    >
                     <n-form-item label="姓名" path="user.name">
                         <n-input v-model:value="formValue.user.name" placeholder="输入姓名" />
                     </n-form-item>
-                    <n-form-item label="年龄" path="user.age">
-                        <n-input v-model:value="formValue.user.age" placeholder="输入年龄" />
+                    <n-form-item label="年龄">
+                        <n-input-number v-model:value="formValue.user.age" style="width: 100%"  placeholder="输入年龄"/>
                     </n-form-item>
                     <n-form-item label="性别" path="user.sex">
                         <n-radio-group v-model:value="formValue.user.sex" >
                             <n-space>
-                                <n-radio value="0">男</n-radio>
-                                <n-radio value="1">女</n-radio>
+                                <n-radio value='0'>男</n-radio>
+                                <n-radio value='1'>女</n-radio>
                             </n-space>
                         </n-radio-group>
                     </n-form-item>
@@ -39,7 +46,6 @@
             </n-card>
         </n-modal>
     </n-space>
-
 </template>
 <script lang="ts">
 import { reactive,ref } from '@vue/reactivity'
@@ -48,14 +54,16 @@ import {NButton,useMessage} from "naive-ui";
 import { h } from 'vue'
 import {FormInst} from "naive-ui/lib";
 export default{
-    name:'App',
+    name:'Test',
     components:{
         NButton,
     },
     setup() {
+        const  modalShowType = ref('')
+        const searchValue = ref('')
+        const selectSex = ref('')
         const showModal = ref(false)
-        const testData = reactive([]);
-        const addParams = reactive({})
+        let testData = ref([])
         const message = useMessage()
         const columns = [
             {
@@ -77,19 +85,24 @@ export default{
                 title: '操作',
                 key: 'action',
                 render(row) {
-                    return h(NButton, {
+                    return [
+                        h(NButton, {
+                            size: 'small',
+                            onClick: () => openUpdate(row)
+                        }, {default: () => '编辑'}),
+                        h(NButton, {
                             size: 'small',
                             onClick: () => deleteRow(row)
-                        }, {default: () => '删除'}
-                    )
+                        }, {default: () => '删除'})
+                    ]
                 }
             }]
         const {proxy} = getCurrentInstance();
         const formRef = ref<FormInst | null>(null)
-        const formValue= ref({
+        let formValue= reactive({
             user:{
                 name:'',
-                age:'',
+                age: 0,
                 sex:'',
                 address:''
             }
@@ -102,7 +115,7 @@ export default{
                     trigger:'blur'
                 },
                 age: {
-                    required: true,
+                    required: false,
                     message: '请输入年龄',
                     trigger: ['blur']
                 },
@@ -118,6 +131,19 @@ export default{
                 }
             }
         }
+        const options = [
+            {
+                label:'全部',
+                value:'',
+            },{
+                label:'男',
+                value:'0'
+            }, {
+                label:'女',
+                value: '1'
+            }
+
+        ]
         /*获取用户列表*/
         const getData = function () {
             proxy.$axios({
@@ -127,7 +153,7 @@ export default{
                 res.data.data.forEach(item=>{
                     item.sexCol = item.sex==0?'男':'女'
                 })
-                testData.value = res.data.data;
+                testData.value = res.data.data
             });
         }
         getData()
@@ -136,14 +162,28 @@ export default{
             e.preventDefault()
             formRef.value?.validate((errors) => {
                 if (!errors) {
+                    if(modalShowType.value == 'add') {
+                        addUser(formValue.user)
+                    }else if(modalShowType.value == 'update') {
+
+                        updateUser(formValue.user)
+                    }
                     showModal.value = false
-                    addUser(formValue.value.user)
                 } else {
-                    console.log(errors)
                     message.error('Invalid')
                 }
-            })        }
-
+            })
+        }
+        const showModalCol = function (){
+            showModal.value = true
+            modalShowType.value = 'add'
+        }
+        const openUpdate = function (row) {
+            showModal.value = true
+            modalShowType.value = 'update'
+            formValue.user = row
+            formValue.user.sex = formValue.user.sex.toString()
+        }
         /*删除*/
         const deleteRow = function (row) {
             proxy.$axios({
@@ -152,6 +192,9 @@ export default{
                 data: row
             }).then((res) => {
                 testData.value = res.data.data;
+                res.data.data.forEach(item=>{
+                    item.sexCol = item.sex==0?'男':'女'
+                })
             });
         }
         /* 新增*/
@@ -162,19 +205,69 @@ export default{
                 data: params
             }).then((res) => {
                 testData.value = res.data.data;
+                res.data.data.forEach(item=>{
+                    item.sexCol = item.sex==0?'男':'女'
+                })
+                searchValue.value = ''
+                selectSex.value = ''
+                formValue.user.name = ''
+                formValue.user.age = 0
+                formValue.user.sex = ''
+                formValue.user.address = ''
+            });
+        }
+        const updateUser = function (params) {
+            proxy.$axios({
+                url: '/updateData',
+                method: 'post',
+                data: params
+            }).then((res) => {
+                testData.value = res.data.data;
+                res.data.data.forEach(item=>{
+                    item.sexCol = item.sex==0?'男':'女'
+                })
+                searchValue.value = ''
+                selectSex.value = ''
+                formValue.user.name = ''
+                formValue.user.age = 0
+                formValue.user.sex = ''
+                formValue.user.address = ''
+            });
+        }
+
+        const searchInputValue = function (){
+            let params = {
+                searchValue:searchValue.value,
+                sex:selectSex.value
+            }
+            proxy.$axios({
+                url: '/searchData',
+                method: 'post',
+                data: params
+            }).then((res) => {
+                testData.value = res.data.data;
+                res.data.data.forEach(item=>{
+                    item.sexCol = item.sex==0?'男':'女'
+                })
             });
         }
         return {
             testData,
+            searchValue,
             columns,
             formRef,
             showModal,
-            getData,
-            addUser,
             formValue,
             rules,
+            selectSex,
+            options,
+            modalShowType,
+            searchInputValue,
+            getData,
             deleteRow,
-            handleValidateClick
+            addUser,
+            handleValidateClick,
+            showModalCol
         }
     },
 

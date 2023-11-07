@@ -11,7 +11,6 @@ for(let i:number = 0;i<4;i++) {
         'sex|0-1':0
     }))
 }
-
 Mock.mock('/getData', 'get', ()=>{
     return {
         status:200, //请求成功状态码,
@@ -20,7 +19,7 @@ Mock.mock('/getData', 'get', ()=>{
     }
 })
 
-Mock.mock('/addData','post', (option:object)=>{
+Mock.mock('/addData','post', (option:any)=>{
     let paramsData = JSON.parse(option.body)
     paramsData.id = List.length+1
     List.push(paramsData)
@@ -30,8 +29,43 @@ Mock.mock('/addData','post', (option:object)=>{
         data:List //模拟的请
     }
 })
+Mock.mock('/updateData','post', (option:any)=>{
+    let paramsData = JSON.parse(option.body)
+    List.forEach(item=>{
+        if(item.id == paramsData.id){
+            item.name = paramsData.name
+            item.age = paramsData.age
+            item.sex = paramsData.sex
+            item.address = paramsData.address
+        }
+    })
+    return {
+        status:200, //请求成功状态码,
+        message:'修改成功',
+        data:List //模拟的请
+    }
+})
 
-Mock.mock('/deleteData','post',(option:object) =>{
+Mock.mock('/searchData','post', (option:any)=>{
+    let paramsData = JSON.parse(option.body)
+    let CList:any[] = []
+    List.forEach(item=>{
+        if(item.name.includes(paramsData.searchValue) || item.address.includes(paramsData.searchValue)){
+            if(!paramsData.sex)  CList.push(item)
+            else{
+                if(item.sex == paramsData.sex) CList.push(item)
+            }
+
+        }
+    })
+    return {
+        status:200, //请求成功状态码,
+        message:'查询成功',
+        data:CList //模拟的请
+    }
+})
+
+Mock.mock('/deleteData','post',(option:any) =>{
     let paramsData = JSON.parse(option.body)
     for(let i=0;i<List.length;i++) {
         if(List[i].id == paramsData.id) {
